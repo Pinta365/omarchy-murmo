@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# murmo-panel -- show/hide the Murmo web app as a Hyprland panel.
+#
+#   murmo-panel toggle [url]   open the panel, or hide/show it when running
+#   murmo-panel show   [url]   make sure the panel is running and visible
+#   murmo-panel hide   [url]   hide the panel (the window stays alive)
+#   murmo-panel start  [url]   launch it hidden if it is not running (autostart)
+#
+# The URL defaults to $MURMO_URL or https://murmo.org/, and can be overridden
+# by a second argument.
+#
+# Chromium ignores --class for --app windows: the Wayland app_id is generated as
+# "chrome-<url-host>__-<profile-directory>". Naming the profile directory
+# "murmo-panel" therefore yields a stable, unique app_id such as
+# "chrome-murmo.org__-murmo-panel", which ~/.config/hypr/murmo.lua parks on the
+# special workspace "murmo" as a floating top-right panel. Toggling that
+# workspace shows/hides the window.
+#
+# --force-app-mode keeps Chromium from also opening a plain browser window
+# (e.g. the first-run welcome tab of a system-installed extension).
+
+set -euo pipefail
+
+CLASS_PATTERN='^chrome-.*__-murmo-panel$'
+SPECIAL="murmo"
+DEFAULT_URL="https://murmo.org/"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/murmo-panel/chromium"
+PROFILE_DIR="murmo-panel"
+
+URL="${MURMO_URL:-$DEFAULT_URL}"
+
+action="${1:-toggle}"
+[ "$#" -ge 2 ] && URL="$2"
+
+chromium_bin() {
+  command -v chromium || command -v chromium-browser || command -v google-chrome-stable
+}
+
+# hyprctl emits JSON; prefer python3, fall back to grep if it is missing.
+has_window() {
+  if command -v python3 >/dev/null 2>&1; then
+    hyprctl clients -j 2>/dev/null | python3 -c '
+import json, re, sys
+pattern = re.compile(r"'"$CLASS_PATTERN"'")
+try:
+    clients = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+sys.exit(0 if any(pattern.match(c.get("class") or "") for c in clients) else 1)'
+  else
+    hyprctl clients -j 2>/dev/null | grep -qE "\"class\": *\"chrome-[^\"]*__-murmo-panel\""
+  fi
+}
+
+special_visible() {
+  if command -v python3 >/dev/null 2>&1; then
+    hyprctl monitors -j 2>/dev/null | python3 -c '
+import json, sys
+try:
+    monitors = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+shown = any((m.get("specialWorkspace") or {}).get("name") == "special:'"$SPECIAL"'"
+            for m in monitors)
+sys.exit(0 if shown else 1)'
+  else
+    hyprctl monitors -j 2>/dev/null | grep -q "special:$SPECIAL"
+  fi
+}
+
+# Hyprland 0.56 takes a Lua expression for `hyprctl dispatch`.
+toggle_special() {
+  hyprctl dispatch "hl.dsp.workspace.toggle_special('$SPECIAL')" >/dev/null 2>&1 || true
+}
+
+launch() {
+  local bin
+  bin="$(chromium_bin)" || { echo "murmo-panel: chromium not found" >&2; exit 1; }
+  mkdir -p "$DATA_DIR"
+  setsid uwsm-app -- "$bin" \
+    --user-data-dir="$DATA_DIR" \
+    --profile-directory="$PROFILE_DIR" \
+    --app="$URL" \
+    --force-app-mode \
+    --no-first-run --no-default-browser-check \
+    >/dev/null 2>&1 &
+}
+
+wait_for_window() {
+  local _
+  for _ in $(seq 1 40); do
+    has_window && return 0
+    sleep 0.25
+  done
+  return 1
+}
+
+# Put the panel in the top-right corner of the monitor it is on: 16px from the
+# right edge, under the bar. The window rule's `move` is not applied to this
+# window (it opens centred), so the position is set here, after every launch
+# and whenever the panel is shown (the special workspace follows the focused
+# monitor).
+place() {
+  command -v python3 >/dev/null 2>&1 || return 0
+  local target
+  target="$(python3 -c '
+import json, re, subprocess, sys
+run = lambda *a: json.loads(subprocess.run(["hyprctl", *a, "-j"], capture_output=True, text=True).stdout or "[]")
+pattern = re.compile(r"'"$CLASS_PATTERN"'")
+win = next((c for c in run("clients") if pattern.match(c.get("class") or "")), None)
+mon = win and next((m for m in run("monitors") if m.get("id") == win.get("monitor")), None)
+if not mon:
+    sys.exit(1)
+width = round(mon["width"] / (mon.get("scale") or 1))
+print(mon["x"] + width - win["size"][0] - 16, mon["y"] + 42)
+')" || return 0
+  local x="${target% *}" y="${target#* }"
+  hyprctl dispatch "hl.dsp.window.move({ x = $x, y = $y, window = 'class:$CLASS_PATTERN' })" >/dev/null 2>&1 || true
+}
+
+# The window rule parks a fresh window on special:murmo silently, so reveal it.
+ensure_shown() {
+  if ! has_window; then
+    launch
+    wait_for_window || true
+  fi
+  if ! special_visible; then
+    toggle_special
+  fi
+  place
+}
+
+case "$action" in
+  toggle)
+    if has_window; then
+      toggle_special
+      if special_visible; then place; fi
+    else
+      ensure_shown
+    fi
+    ;;
+  show)
+    ensure_shown
+    ;;
+  hide)
+    if has_window && special_visible; then
+      toggle_special
+    fi
+    ;;
+  start)
+    if ! has_window; then
+      launch
+      wait_for_window || true
+    fi
+    place
+    # Start hidden: the window rule parks a fresh window on special:murmo
+    # silently, but hide it if that workspace was already showing.
+    if special_visible; then
+      toggle_special
+    fi
+    ;;
+  *)
+    echo "usage: murmo-panel {toggle|show|hide|start} [url]" >&2
+    exit 2
+    ;;
+esac

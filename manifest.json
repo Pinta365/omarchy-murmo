@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "pinta365.murmo",
+  "name": "Murmo",
+  "version": "0.1.0",
+  "author": "Pinta365",
+  "license": "MIT",
+  "description": "Toggle the Murmo Secure Messenger web app as a floating panel from the Omarchy bar, with an unread badge.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Murmo",
+    "description": "Show or hide the Murmo web app as a top-right panel; the badge counts unread messages.",
+    "category": "Communication",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "url": "https://murmo.org/"
+    },
+    "schema": [
+      {
+        "key": "url",
+        "type": "string",
+        "label": "Murmo URL",
+        "description": "Address the Murmo web app is served from.",
+        "defaultValue": "https://murmo.org/"
+      }
+    ]
+  }
+}
