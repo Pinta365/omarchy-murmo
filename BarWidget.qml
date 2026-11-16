@@ -25,7 +25,7 @@ BarWidget {
 
   // A sound when the unread count grows (the first reading and a decrease stay silent).
   readonly property bool soundEnabled: String(setting("sound", true)) !== "false"
-  readonly property string soundFile: String(setting("soundFile", "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"))
+  readonly property string soundFile: String(setting("soundFile", "/usr/share/sounds/freedesktop/stereo/bell.oga"))
 
   // Absolute path to the helper, so it works regardless of PATH.
   readonly property string pluginDir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")

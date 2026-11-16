@@ -21,7 +21,7 @@
     "defaults": {
       "url": "https://murmo.org/",
       "sound": true,
-      "soundFile": "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"
+      "soundFile": "/usr/share/sounds/freedesktop/stereo/bell.oga"
     },
     "schema": [
       {
@@ -43,7 +43,7 @@
         "type": "string",
         "label": "Sound file",
         "description": "Played with pw-play when the unread count grows.",
-        "defaultValue": "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"
+        "defaultValue": "/usr/share/sounds/freedesktop/stereo/bell.oga"
       }
     ]
   }

@@ -8,7 +8,7 @@ top-right panel, with an unread badge.
 - **Unread badge:** reads the `(N) …` prefix Murmo puts on the window title and
   shows the number (capped at `99+`).
 - **New-message sound:** when the unread count grows, plays
-  `message-new-instant.oga` with `pw-play` (once at most every 2 s).
+  `bell.oga` with `pw-play` (once at most every 2 s).
 - **Click outside:** hides the panel (a full-screen transparent click-catcher).
 - **Resize:** drag with `SUPER` + right mouse button; the click-catcher follows.
 
@@ -106,7 +106,7 @@ omarchy bar set pinta365.murmo soundFile /path/to/another.oga
 - **`sound`** (boolean, default `true`) — play a sound when the unread count
   grows.
 - **`soundFile`** (string, default
-  `/usr/share/sounds/freedesktop/stereo/message-new-instant.oga`) — the file
+  `/usr/share/sounds/freedesktop/stereo/bell.oga`) — the file
   played with `pw-play`.
 
 ## How it works
