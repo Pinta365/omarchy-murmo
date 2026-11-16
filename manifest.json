@@ -19,7 +19,9 @@
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "url": "https://murmo.org/"
+      "url": "https://murmo.org/",
+      "sound": true,
+      "soundFile": "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"
     },
     "schema": [
       {
@@ -28,6 +30,20 @@
         "label": "Murmo URL",
         "description": "Address the Murmo web app is served from.",
         "defaultValue": "https://murmo.org/"
+      },
+      {
+        "key": "sound",
+        "type": "boolean",
+        "label": "Play a sound on new messages",
+        "description": "Rings with pw-play when the unread count grows.",
+        "defaultValue": true
+      },
+      {
+        "key": "soundFile",
+        "type": "string",
+        "label": "Sound file",
+        "description": "Played with pw-play when the unread count grows.",
+        "defaultValue": "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"
       }
     ]
   }

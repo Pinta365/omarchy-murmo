@@ -23,6 +23,10 @@ BarWidget {
 
   readonly property string url: String(setting("url", "https://murmo.org/"))
 
+  // A sound when the unread count grows (the first reading and a decrease stay silent).
+  readonly property bool soundEnabled: String(setting("sound", true)) !== "false"
+  readonly property string soundFile: String(setting("soundFile", "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga"))
+
   // Absolute path to the helper, so it works regardless of PATH.
   readonly property string pluginDir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
   readonly property string panelScript: pluginDir + "bin/murmo-panel"
@@ -43,6 +47,8 @@ BarWidget {
   // ---- Panel presence + unread count, driven by Quickshell.Hyprland.
   property var panelToplevel: null
   property int unread: 0
+  property int lastUnread: -1 // -1 until a panel window has been read once
+  property double lastSoundAt: 0
 
   // Chromium app windows ignore --class and build their Wayland app_id as
   // "chrome-<url-host>__-<profile-directory>"; the launcher names the profile
@@ -77,12 +83,45 @@ BarWidget {
 
     // Murmo prefixes the title with "(N) " while messages are unread.
     var match = /^\((\d+)\)/.exec(title)
-    unread = match ? parseInt(match[1], 10) : 0
+    var next = match ? parseInt(match[1], 10) : 0
+    noteUnread(found ? next : -1)
+    unread = next
   }
 
   function toggle() {
     if (!bar) return
     bar.run(Util.shellQuote(panelScript) + " toggle " + Util.shellQuote(url))
+  }
+
+  // ── a sound when the unread count grows ───────────────────────────────────────────────────────────────────────
+  //
+  // Only a real increase rings: the first reading of a panel window (startup,
+  // shell reload, the window opening), a decrease and an unchanged count stay
+  // silent. At most one sound per 2 s, and only one bar copy plays it.
+
+  function isCoordinator() {
+    if (!bar || typeof bar.moduleWidgets !== "function") return true
+    var items = bar.moduleWidgets(moduleName)
+    return items.length <= 1 || items[0] === root
+  }
+
+  function noteUnread(value) {
+    if (value < 0) { lastUnread = -1; return } // no panel window: forget the reading
+    if (lastUnread < 0) { lastUnread = value; return } // first reading of this window
+    var previous = lastUnread
+    lastUnread = value
+    if (value > previous) ring()
+  }
+
+  function ring() {
+    if (!soundEnabled) return
+    if (Date.now() - lastSoundAt < 2000) return
+    if (!isCoordinator()) return
+    lastSoundAt = Date.now()
+    // The guard keeps a missing pw-play or sound file a silent skip, and keeps
+    // pw-play's own errors out of the log (always exits 0).
+    sound.command = ["sh", "-c", 'command -v pw-play >/dev/null 2>&1 && [ -f "$1" ] && pw-play "$1" >/dev/null 2>&1; exit 0', "sh", soundFile]
+    sound.running = true
   }
 
   // ── hiding the panel on a click outside it ─────────────────────────────────────────────────────────────────────
@@ -190,6 +229,12 @@ BarWidget {
     running: root.panelShown
     repeat: true
     onTriggered: Hyprland.refreshToplevels()
+  }
+
+  // Plays the new-message sound; ring() sets the command each time.
+  Process {
+    id: sound
+    command: []
   }
 
   // Seed the shown state at startup, in case the shell restarted with the panel up.

@@ -7,6 +7,8 @@ top-right panel, with an unread badge.
 - **Left click:** show the panel, or hide it again.
 - **Unread badge:** reads the `(N) …` prefix Murmo puts on the window title and
   shows the number (capped at `99+`).
+- **New-message sound:** when the unread count grows, plays
+  `message-new-instant.oga` with `pw-play` (once at most every 2 s).
 - **Click outside:** hides the panel (a full-screen transparent click-catcher).
 - **Resize:** drag with `SUPER` + right mouse button; the click-catcher follows.
 
@@ -88,14 +90,24 @@ If you would rather not run the script:
    o.exec_on_start("murmo-panel start")
    ```
 
-## Setting: `url`
+## Settings
 
-The web app address, default `https://murmo.org/`. Point it at a self-hosted
-Murmo instance:
+Set them with `omarchy bar set` (use `--json` so a boolean is stored as a
+boolean, not the string `"false"`):
 
 ```sh
 omarchy bar set pinta365.murmo url https://example.com/
+omarchy bar set pinta365.murmo sound false --json
+omarchy bar set pinta365.murmo soundFile /path/to/another.oga
 ```
+
+- **`url`** (string, default `https://murmo.org/`) — the web app address; point
+  it at a self-hosted Murmo instance.
+- **`sound`** (boolean, default `true`) — play a sound when the unread count
+  grows.
+- **`soundFile`** (string, default
+  `/usr/share/sounds/freedesktop/stereo/message-new-instant.oga`) — the file
+  played with `pw-play`.
 
 ## How it works
 
